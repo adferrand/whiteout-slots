@@ -74,6 +74,19 @@ do not count, so rejected players can rebook immediately.
 `withdrawn` (player cancelled, hidden). Admins can reject, restore a rejected booking
 to pending (undo a wrong decision) and delete permanently (spam).
 
+**Admin registration**: in the admin view, open any slot and use "Register a player on this
+slot" (players who asked outside the site, or late). The player is created as `confirmed`
+and every pending request on the slot is rejected, in one statement. It is refused when the
+slot already has a confirmed booking (reject that one first) or when the game ID already has
+an active booking for the position (confirm or delete that one instead). These bookings are
+tagged "Registered by admin" and flagged in the full-log export. Nobody holds their edit
+token, so only an admin can remove them.
+
+**Day colours**: each day has its own colour (Monday teal, Tuesday violet, Thursday magenta),
+kept distinct from the status colours. It appears as a bar on the tab, as the border and
+heading of the panel that holds the slots, and as the top edge of the booking dialogs, so a
+slot always visibly belongs to the day selected above it.
+
 **Nothing confirms itself.** The admin view offers "Confirm N uncontested" to confirm
 every pending booking that is alone on a free slot.
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import type { PositionConfig } from "@/lib/config";
 import { api, ApiError } from "@/lib/client";
 import { slotDayLabel, slotRange, type TzMode } from "@/lib/slots";
@@ -40,6 +40,7 @@ export function AdminDialog(props: Props) {
       open={open}
       onClose={onClose}
       title={`${position.title}, ${position.buff} buff`}
+      day={position.key}
       subtitle={
         <>
           <span>{slotDayLabel(dateUtc, slot, "utc")}, {slotRange(dateUtc, slot, "utc")} UTC</span>
@@ -52,7 +53,7 @@ export function AdminDialog(props: Props) {
   );
 }
 
-function Body({ position, slotBookings, tz, onChanged }: Props) {
+function Body({ position, slot, slotBookings, tz, onChanged }: Props) {
   const [busy, setBusy] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,12 +78,9 @@ function Body({ position, slotBookings, tz, onChanged }: Props) {
   const patch = (id: number, action: "confirm" | "reject" | "restore") =>
     api(`/api/admin/bookings/${id}`, { method: "PATCH", body: JSON.stringify({ action }) });
 
-  if (slotBookings.length === 0) {
-    return <p className="note">Nobody has requested this slot yet.</p>;
-  }
-
   return (
     <div className="stack">
+      {slotBookings.length === 0 && <p className="note">Nobody has requested this slot yet.</p>}
       {pending.length > 1 && (
         <p className="note note--alert">
           {pending.length} players want this slot. Confirm one and the others are rejected.
@@ -95,6 +93,7 @@ function Body({ position, slotBookings, tz, onChanged }: Props) {
               <strong className="card__name">
                 {b.status === "rejected" ? <s>{b.pseudo}</s> : b.pseudo}{" "}
                 <span className="muted">[{b.alliance}]</span>
+                {b.createdByAdmin && <span className="tag tag--admin">Registered by admin</span>}
               </strong>
               <span className={`badge badge--${b.status}`}>{STATUS_TEXT[b.status as keyof typeof STATUS_TEXT]}</span>
             </div>
@@ -173,13 +172,104 @@ function Body({ position, slotBookings, tz, onChanged }: Props) {
           </li>
         ))}
       </ul>
-      {hasConfirmed && (
+      {hasConfirmed ? (
         <p className="muted">
-          This slot is confirmed. Reject the confirmed booking to free the slot, then restore or
-          confirm another request.
+          This slot is confirmed. Reject the confirmed booking to free the slot, then restore,
+          confirm or register another player.
         </p>
+      ) : (
+        <RegisterForm
+          position={position}
+          slot={slot}
+          pendingCount={pending.length}
+          startOpen={slotBookings.length === 0}
+          onChanged={onChanged}
+        />
       )}
       {error && <p className="error" role="alert">{error}</p>}
     </div>
+  );
+}
+
+/** Authoritative registration: request made outside the site, or a late one. */
+function RegisterForm({
+  position,
+  slot,
+  pendingCount,
+  startOpen,
+  onChanged,
+}: {
+  position: PositionConfig;
+  slot: number;
+  pendingCount: number;
+  startOpen: boolean;
+  onChanged: (message?: string) => void;
+}) {
+  const [pseudo, setPseudo] = useState("");
+  const [gameId, setGameId] = useState("");
+  const [alliance, setAlliance] = useState("");
+  const [accelerators, setAccelerators] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      const r = await api<{ rejected: number }>("/api/admin/bookings", {
+        method: "POST",
+        body: JSON.stringify({
+          positionKey: position.key,
+          slot,
+          pseudo,
+          gameId,
+          alliance,
+          ...(accelerators.trim() === "" ? {} : { accelerators: Number(accelerators) }),
+        }),
+      });
+      onChanged(
+        `${pseudo.trim()} registered and confirmed.` +
+          (r.rejected > 0 ? ` ${r.rejected} pending request${r.rejected === 1 ? "" : "s"} rejected.` : ""),
+      );
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "The registration failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <details className="register" open={startOpen}>
+      <summary className="register__summary">Register a player on this slot</summary>
+      <form className="stack register__form" onSubmit={submit}>
+        <p className="muted">
+          The player is confirmed immediately.
+          {pendingCount > 0 && ` The ${pendingCount} pending request${pendingCount === 1 ? "" : "s"} on this slot will be rejected.`}
+        </p>
+        <div className="field">
+          <label htmlFor="reg-pseudo">In-game name</label>
+          <input id="reg-pseudo" value={pseudo} onChange={(e) => setPseudo(e.target.value)} maxLength={32} required autoComplete="off" />
+        </div>
+        <div className="field">
+          <label htmlFor="reg-gameId">Game ID</label>
+          <input id="reg-gameId" value={gameId} onChange={(e) => setGameId(e.target.value)} inputMode="numeric" pattern="\d{6,12}" title="6 to 12 digits" required autoComplete="off" />
+        </div>
+        <div className="field">
+          <label htmlFor="reg-alliance">Alliance</label>
+          <input id="reg-alliance" value={alliance} onChange={(e) => setAlliance(e.target.value)} maxLength={32} required autoComplete="off" />
+        </div>
+        <div className="field">
+          <label htmlFor="reg-accel">Planned {position.speedupKind} speedups, in days (optional)</label>
+          <input id="reg-accel" type="number" min={0} step={1} inputMode="numeric" value={accelerators} onChange={(e) => setAccelerators(e.target.value)} />
+        </div>
+        {error && <p className="error" role="alert">{error}</p>}
+        <div className="actions">
+          <button type="submit" className="btn btn--primary" disabled={busy}>
+            {busy ? "Registering" : "Register and confirm"}
+          </button>
+        </div>
+      </form>
+    </details>
   );
 }

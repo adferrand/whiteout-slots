@@ -1,0 +1,1 @@
+ALTER TABLE "booking" ADD COLUMN "created_by_admin" boolean DEFAULT false NOT NULL;

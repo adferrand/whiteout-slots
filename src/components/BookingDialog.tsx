@@ -42,6 +42,7 @@ export function BookingDialog(props: Props) {
       open={open}
       onClose={onClose}
       title={`${position.title}, ${position.buff} buff`}
+      day={position.key}
       subtitle={
         <>
           <span>{utc.day}, {utc.range} UTC</span>

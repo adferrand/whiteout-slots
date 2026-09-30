@@ -83,6 +83,7 @@ export async function listAdmin(db: Db): Promise<AdminBooking[]> {
       gameId: booking.gameId,
       accelerators: booking.accelerators,
       createdAt: booking.createdAt,
+      createdByAdmin: booking.createdByAdmin,
     })
     .from(booking)
     .where(inArray(booking.status, ["pending", "confirmed", "rejected"]))
@@ -102,6 +103,7 @@ export type ExportRow = {
   accelerators: number;
   status: string;
   createdAt: string;
+  createdByAdmin: boolean;
 };
 
 export async function listForExport(
@@ -118,6 +120,7 @@ export async function listForExport(
       accelerators: booking.accelerators,
       status: booking.status,
       createdAt: booking.createdAt,
+      createdByAdmin: booking.createdByAdmin,
     })
     .from(booking);
   const rows = await (scope === "schedule"
@@ -235,6 +238,56 @@ export async function confirmBooking(db: Db, id: number): Promise<ConfirmResult>
     if (uniqueViolation(err) === "booking_one_confirmed_per_slot") {
       return { ok: false, reason: "slot_taken" };
     }
+    throw err;
+  }
+}
+
+export type RegisterResult =
+  | { ok: true; booking: PublicBooking; rejected: number }
+  | { ok: false; reason: "slot_taken" | "already_booked" };
+
+/**
+ * Authoritative registration by an admin (request made outside the normal
+ * circuit, or late). The player is inserted as confirmed and every pending
+ * request on the slot is rejected, in one atomic statement. It is refused when
+ * the slot already has a confirmed booking, or when the player already has an
+ * active booking for the position (confirm or reject that one instead).
+ */
+export async function registerBooking(
+  db: Db,
+  input: CreateBookingInput,
+  editTokenHash: string,
+): Promise<RegisterResult> {
+  try {
+    const res = await db.execute(sql`
+      WITH ins AS (
+        INSERT INTO booking
+          (position_key, slot, pseudo, game_id, alliance, accelerators,
+           status, edit_token_hash, created_by_admin, decided_at)
+        VALUES
+          (${input.positionKey}::text, ${input.slot}::smallint, ${input.pseudo}::text,
+           ${input.gameId}::text, ${input.alliance}::text, ${input.accelerators}::int,
+           'confirmed', ${editTokenHash}::text, true, now())
+        RETURNING id, position_key, slot, pseudo, alliance, status
+      ), r AS (
+        UPDATE booking b SET status = 'rejected', decided_at = now()
+        FROM ins
+        WHERE b.position_key = ins.position_key AND b.slot = ins.slot
+          AND b.status = 'pending' AND b.id <> ins.id
+        RETURNING b.id
+      )
+      SELECT ins.id, ins.position_key AS "positionKey", ins.slot, ins.pseudo,
+             ins.alliance, ins.status, (SELECT count(*) FROM r)::int AS rejected
+      FROM ins
+    `);
+    const row = rowsOf<PublicBooking & { rejected: number }>(res)[0];
+    if (!row) return { ok: false, reason: "slot_taken" };
+    const { rejected, ...booking } = row;
+    return { ok: true, booking, rejected: Number(rejected) };
+  } catch (err) {
+    const constraint = uniqueViolation(err);
+    if (constraint === "booking_one_confirmed_per_slot") return { ok: false, reason: "slot_taken" };
+    if (constraint === "booking_one_active_per_player") return { ok: false, reason: "already_booked" };
     throw err;
   }
 }

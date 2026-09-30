@@ -7,11 +7,13 @@ type Props = {
   onClose: () => void;
   title: string;
   subtitle?: ReactNode;
+  /** Position key: colours the dialog with the day it belongs to. */
+  day?: string;
   children: ReactNode;
 };
 
 /** Native <dialog>: focus trap, Escape and backdrop handled by the browser. */
-export function Modal({ open, onClose, title, subtitle, children }: Props) {
+export function Modal({ open, onClose, title, subtitle, day, children }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -26,6 +28,7 @@ export function Modal({ open, onClose, title, subtitle, children }: Props) {
     <dialog
       ref={ref}
       className="modal"
+      data-day={day}
       aria-labelledby={titleId}
       onClose={onClose}
       onClick={(e) => {

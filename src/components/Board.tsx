@@ -174,6 +174,7 @@ export function Board({ mode }: { mode: "public" | "admin" }) {
               type="button"
               role="tab"
               aria-selected={p.key === positionKey}
+              data-day={p.key}
               className="tab"
               onClick={() => choosePosition(p.key)}
             >
@@ -216,7 +217,19 @@ export function Board({ mode }: { mode: "public" | "admin" }) {
       )}
 
       {views && dateUtc && (
-        <div className="ladder" role="tabpanel" aria-label={`${position.title}, ${position.buff} buff`}>
+        <div
+          className="panel"
+          data-day={position.key}
+          role="tabpanel"
+          aria-label={`${position.title}, ${position.buff} buff`}
+        >
+          <header className="panel__head">
+            <h2 className="panel__day">{formatUtcDate(dateUtc).replace(/ \d{4}$/, "")}</h2>
+            <p className="panel__role">
+              {position.title}, {position.buff} buff
+            </p>
+          </header>
+          <div className="ladder">
           {[0, 12].map((start) => (
             <section key={start} className="ladder__col">
               <h2 className="sr-only">
@@ -244,6 +257,7 @@ export function Board({ mode }: { mode: "public" | "admin" }) {
               ))}
             </section>
           ))}
+          </div>
         </div>
       )}
 

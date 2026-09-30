@@ -17,6 +17,7 @@ export type AdminBooking = PublicBooking & {
   gameId: string;
   accelerators: number;
   createdAt: string;
+  createdByAdmin: boolean;
 };
 
 export type Overview<B extends PublicBooking = PublicBooking> = {

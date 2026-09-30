@@ -65,8 +65,8 @@ describe("validation", () => {
 
 describe("export", () => {
   const rows: ExportRow[] = [
-    { positionKey: "ministry_education", slot: 2, pseudo: "Zed", gameId: "111111", alliance: "ZZZ", accelerators: 5, status: "confirmed", createdAt: "2026-10-01T10:00:00.000Z" },
-    { positionKey: "vp_construction", slot: 1, pseudo: "=HYPERLINK(\"x\")", gameId: "222222", alliance: "A,B", accelerators: 9, status: "confirmed", createdAt: "2026-10-01T11:00:00.000Z" },
+    { positionKey: "ministry_education", slot: 2, pseudo: "Zed", gameId: "111111", alliance: "ZZZ", accelerators: 5, status: "confirmed", createdAt: "2026-10-01T10:00:00.000Z", createdByAdmin: false },
+    { positionKey: "vp_construction", slot: 1, pseudo: "=HYPERLINK(\"x\")", gameId: "222222", alliance: "A,B", accelerators: 9, status: "confirmed", createdAt: "2026-10-01T11:00:00.000Z", createdByAdmin: true },
   ];
   it("starts with a BOM, sorts by position then slot, and neutralises formulas", () => {
     const csv = toCsv(rows, "2026-10-05", "schedule");
@@ -79,7 +79,7 @@ describe("export", () => {
     assert.equal(lines[0].includes("speedup_days"), false);
   });
   it("adds status and speedups in the full log", () => {
-    assert.ok(toCsv(rows, "2026-10-05", "full").split("\r\n")[0].endsWith("status,speedup_days,created_at_utc"));
+    assert.ok(toCsv(rows, "2026-10-05", "full").split("\r\n")[0].endsWith("status,speedup_days,registered_by_admin,created_at_utc"));
   });
   it("renders a chat-friendly text schedule with empty positions", () => {
     const text = toText(rows, "2026-10-05");

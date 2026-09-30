@@ -36,7 +36,9 @@ export function toCsv(
     "pseudo",
     "game_id",
     "alliance",
-    ...(scope === "full" ? ["status", "speedup_days", "created_at_utc"] : []),
+    ...(scope === "full"
+      ? ["status", "speedup_days", "registered_by_admin", "created_at_utc"]
+      : []),
   ];
   const lines = [header.join(",")];
   for (const r of sortRows(rows)) {
@@ -53,7 +55,9 @@ export function toCsv(
       r.gameId,
       r.alliance,
     ];
-    if (scope === "full") cells.push(r.status, r.accelerators, r.createdAt);
+    if (scope === "full") {
+      cells.push(r.status, r.accelerators, r.createdByAdmin ? "yes" : "no", r.createdAt);
+    }
     lines.push(cells.map(csvCell).join(","));
   }
   // BOM so that Excel reads UTF-8 (accents, emoji in pseudos) correctly.

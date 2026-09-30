@@ -4,6 +4,12 @@ import { isMonday } from "./slots";
 
 const noControlChars = /^[^\p{Cc}]+$/u;
 
+const accelerators = z
+  .number("Enter a number of speedup days.")
+  .int("Speedup days must be a whole number.")
+  .min(0, "Speedup days cannot be negative.")
+  .max(100_000, "That number of speedup days looks wrong.");
+
 export const createBookingSchema = z.object({
   positionKey: z.enum(POSITION_KEYS),
   slot: z
@@ -27,13 +33,14 @@ export const createBookingSchema = z.object({
     .min(1, "Enter your alliance.")
     .max(32, "Alliance is too long (32 characters max).")
     .regex(noControlChars, "Alliance contains invalid characters."),
-  accelerators: z
-    .number("Enter a number of speedup days.")
-    .int("Speedup days must be a whole number.")
-    .min(0, "Speedup days cannot be negative.")
-    .max(100_000, "That number of speedup days looks wrong."),
+  accelerators,
 });
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
+
+/** Admin registration: same fields, speedup days optional (defaults to 0). */
+export const adminCreateBookingSchema = createBookingSchema.extend({
+  accelerators: accelerators.optional().default(0),
+});
 
 const mondaySchema = z
   .string()

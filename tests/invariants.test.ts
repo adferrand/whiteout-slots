@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { before, beforeEach, describe, it } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
@@ -13,6 +13,7 @@ import {
   listAdmin,
   listPublic,
   purgeBooking,
+  registerBooking,
   rejectBooking,
   resetEvent,
   restoreBooking,
@@ -36,9 +37,12 @@ const input = (over: Partial<Parameters<typeof createBooking>[1]> = {}) => ({
 
 describe("booking invariants", () => {
   before(async () => {
-    const migration = readFileSync("drizzle/0000_init.sql", "utf8");
-    for (const stmt of migration.split("--> statement-breakpoint")) {
-      if (stmt.trim()) await pg.exec(stmt);
+    const files = readdirSync("drizzle").filter((f) => f.endsWith(".sql")).sort();
+    for (const file of files) {
+      const migration = readFileSync(`drizzle/${file}`, "utf8");
+      for (const stmt of migration.split("--> statement-breakpoint")) {
+        if (stmt.trim()) await pg.exec(stmt);
+      }
     }
   });
 
@@ -130,6 +134,38 @@ describe("booking invariants", () => {
     await confirmBooking(db, a.booking.id); // Bob rejected
     await createBooking(db, input({ pseudo: "Bob", gameId: "100000002", slot: 12 }), "tokB2", null);
     assert.deepEqual(await restoreBooking(db, b.booking.id), { ok: false, reason: "player_active" });
+  });
+
+  it("registers a player authoritatively: confirmed at once, pending requests on the slot rejected", async () => {
+    const a = await createBooking(db, input(), "tokA", null);
+    const b = await createBooking(db, input({ pseudo: "Bob", gameId: "100000002" }), "tokB", null);
+    assert.ok(a.ok && b.ok);
+    const r = await registerBooking(db, input({ pseudo: "Late", gameId: "100000099" }), "x");
+    assert.ok(r.ok && r.rejected === 2 && r.booking.status === "confirmed");
+    const rows = await listAdmin(db);
+    assert.equal(rows.find((x) => x.pseudo === "Late")?.createdByAdmin, true);
+    assert.equal(rows.find((x) => x.pseudo === "Alice")?.createdByAdmin, false);
+    assert.equal(rows.filter((x) => x.status === "rejected").length, 2);
+    // and the slot is now closed to players
+    const late = await createBooking(db, input({ pseudo: "Zed", gameId: "100000100" }), "tokZ", null);
+    assert.deepEqual(late, { ok: false, reason: "slot_taken" });
+  });
+
+  it("refuses admin registration on a confirmed slot or for a player with an active booking", async () => {
+    const a = await createBooking(db, input(), "tokA", null);
+    assert.ok(a.ok);
+    await confirmBooking(db, a.booking.id);
+    assert.deepEqual(
+      await registerBooking(db, input({ pseudo: "Late", gameId: "100000099" }), "x"),
+      { ok: false, reason: "slot_taken" },
+    );
+    // Same player already active on this position, on another slot.
+    assert.deepEqual(
+      await registerBooking(db, input({ slot: 20 }), "x"),
+      { ok: false, reason: "already_booked" },
+    );
+    // A refused registration must not have rejected anything.
+    assert.equal((await listPublic(db)).filter((r) => r.status === "confirmed").length, 1);
   });
 
   it("lets a player withdraw only with the right token", async () => {

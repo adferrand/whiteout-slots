@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   index,
@@ -37,6 +38,8 @@ export const booking = pgTable(
     /** sha256 of the secret the booking browser holds; allows self-withdrawal. */
     editTokenHash: text("edit_token_hash").notNull(),
     ipHash: text("ip_hash"),
+    /** True when an admin registered the player (out-of-circuit or late request). */
+    createdByAdmin: boolean("created_by_admin").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
