@@ -97,6 +97,16 @@ p {
   margin: 0;
 }
 
+/* ---------- Footer ---------- */
+
+.footer {
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 0 1rem 2rem;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
 /* ---------- Layout helpers ---------- */
 
 .stack {

@@ -24,6 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <main className="page">{children}</main>
+        <footer className="footer">
+          <p>Created by #1460 [PMA]Fullm3tal</p>
+        </footer>
       </body>
     </html>
   );
