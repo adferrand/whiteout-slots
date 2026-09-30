@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Minister slot booking for Whiteout Survival SvS preparation week",
+  "packageManager": "pnpm@11.28.3",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
