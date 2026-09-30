@@ -166,7 +166,7 @@ function Body({
           </div>
           <div className="field">
             <label htmlFor="gameId">Game ID</label>
-            <input id="gameId" value={gameId} onChange={(e) => setGameId(e.target.value)} inputMode="numeric" pattern="\d{6,12}" title="6 to 12 digits" required autoComplete="off" />
+            <input id="gameId" value={gameId} onChange={(e) => setGameId(e.target.value)} inputMode="numeric" pattern="\d{9}" title="9 digits" required autoComplete="off" />
             <span className="field__hint">Only admins see your game ID.</span>
           </div>
           <div className="field">
